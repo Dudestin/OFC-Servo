@@ -1,0 +1,531 @@
+\documentclass[12pt,a4paper, dvipdfmx]{jsarticle}
+\pagestyle{plain}
+%
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{ascmac}
+\usepackage[final]{pdfpages}
+\usepackage{siunitx}
+\usepackage{listings,jvlisting}
+%
+\setlength{\textwidth}{\fullwidth}
+\setlength{\textheight}{37\baselineskip}
+\addtolength{\textheight}{\topskip}
+\setlength{\voffset}{-0.2in}
+\setlength{\topmargin}{0pt}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+%
+\lstset{
+  basicstyle={\ttfamily},
+  identifierstyle={\small},
+  commentstyle={\smallitshape},
+  keywordstyle={\small\bfseries},
+  ndkeywordstyle={\small},
+  stringstyle={\small\ttfamily},
+  frame={tb},
+  breaklines=true,
+  columns=[l]{fullflexible},
+  numbers=left,
+  xrightmargin=0zw,
+  xleftmargin=3zw,
+  numberstyle={\scriptsize},
+  stepnumber=1,
+  numbersep=1zw,
+  lineskip=-0.5ex
+}
+%
+\title{FPGAを用いた光周波数コムのDSP位相同期制御}
+\author{2020Y24 西村　将}
+\date{\today}
+\begin{document}
+\maketitle
+%
+
+\begin{abstract}
+hgoehoge
+\end{abstract}
+
+\tableofcontents
+\clearpage
+\section{序論}
+% 光周波数コムの用途, DSP位相同期制御の適用, 結果
+光周波数コムによる光周波数測定はH\"{a}nsch, Hallらによって1999年?確立された. その多岐にわたる有用性から, 2005年にノーベル物理学賞を受賞することとなった画期的なレーザー光である. 
+日本においては2009年より長さを定義する標準器として光周波数コムが用いられている他, 分光測定用光源や天文，医療といった多分野への応用が期待されている. 
+\par
+本研究では, Er添加モードロックファイバレーザーを用いた光周波数コム生成に係る制御装置のディジタル信号処理による実現を目的として実施した. 
+従来，この制御にはアナログ回路 (演算増幅器等) を使用した古典制御 (PID (Proportional-Integral-Differential) 制御等) が用いられ，パラメータの設定はポテンショメータの調整により行われてきたが，温度や経年により設定値が外れるなどの問題を内包していた．光周波数コムなどの位相ロックを必要とする物理実験にFPGA (Field―Programable Gate Array) を用いる研究は，過去にも取り組まれている [1, 2]．その手法の多くは，アナログ入力信号を一度AD (Analog-to-Digital) 変換しFPGAに入力するものである．しかしながらこの手法では，観測できる周波数域がAD変換のサンプリング周波数によって制約され，パルス等の時間幅が非常に小さい信号を検出するには高いサンプリング周波数に対応したADC (AD Converter) や混合器等を必要とした．
+\par
+本研究は， $f_{ceo}$, $f_{rep}$のADCを必要としない，DSP (Digital Signal Processing) による位相同期制御手法を提案し，その実証を目的としている．ここでは，主に $f_{rep}$に関する制御手法の検討，およびFPGAを用いたDSPによるPID制御系の実装， その性能の評価の実施, 加えて制御パラメータの定量的調整則の検討を行った.
+結果として, $f_{rep}$の周波数安定化制御動作を確認した. 
+\par 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+\clearpage
+\section{背景}
+\subsection{光周波数コム}
+光周波数コムは，時間軸上では超短パルス列として，周波数軸上では等間隔のモード群として観測されるレーザー光である (図1)．
+$n$番目のモードの周波数$f_n$は次式で与えられる.
+$$f_n = f_{ceo} + n\cdot f_{rep}$$
+ここで$f_{rep}$は, PD (フォトディテクタ)よりパルスの間隔として, $f_{ceo}$はあるモード$f_n$の2次高調波$2f_{n}$と, $f_{2n}$の差分を求める自己参照法により観測できる.
+$$f_{ceo} = 2{f_n} - f_{2n}$$
+光周波数コムの生成に際して, これら$f_{ceo}$， $f_{rep}$の安定化制御が必要とされる. 
+$f_{ceo}$はキャリア・エンベロープ・オフセット周波数とよばれ，モードロックレーザーの励起光強度に依存し,  
+励起用半導体レーザーの注入電流を変化させることによって制御される. 
+$f_{rep}$は繰り返し周波数であり，モードロックレーザーの光共振器長に依存する．
+光路長を変更する方法にはいくつかの方法が存在するが, PZTやステッピングモータが用いられることが多い.
+$f_{rep}$をRF基準に位相同期する場合, フリーラン時の位相雑音量は小さいため,
+限られた制御帯域をもつPZT等であっても位相同期をとることが可能である. 
+
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, scale=0.15]
+      {image/OFC.png}
+ \caption{時間軸・周波数軸での光周波数コム}
+ \label{fig:OFC}
+\end{figure}
+
+$f_{ceo}, f_{rep}$はいずれも電気的に実現された制御回路によりRb周波数標準器などに位相同期されることで, 高い安定性をもつ光周波数コムの実現が可能となる.
+
+\subsection{モードロックファイバーレーザー}
+ほげほげ引用ほげほげ
+
+\subsection{PLL}
+PLL (Phase Locked Loop) とは, ある信号の位相を基準としたい信号の位相に同期させる制御技術のことである.
+出力信号を入力へと負帰還させるフィードバックによりこの位相同期制御が実現される. 
+基本的なPLL制御器のブロック図を図 \ref{fig:analog-pll}に示す.
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/analog-pll.png}
+ \caption{PLLの構成}
+ \label{fig:analog-pll}
+\end{figure}
+\par
+PLLを構成する主要な３つの要素について説明する. 
+\subsubsection{位相比較器}
+位相比較器は２つの入力信号をとり, 信号間の位相差$\phi(t)$に比例した信号$u_d(t)$を出力する. 
+$$u_d(t) = K_{\phi}\,\phi(t)$$
+
+\subsubsection{電圧制御発振器}
+電圧制御発振器 (VCO) は, 入力電圧$u_f$に比例した周波数$f_2 = \frac{1}{2\pi}\frac{\mathrm{d}}{\mathrm{d}t}\theta_{out}$を出力する. この伝達関数は次式で与えられる.
+$$\frac{\theta_{out}(s)}{u_f(s)} = \frac{K_V}{s}$$
+PLLは位相フィードバックシステムであり, 位相は角周波数の積分であることからVCOは純粋積分要素となる.
+
+\subsubsection{LF (ループフィルタ) }
+位相比較器からの信号はノイズ成分(高周波の信号)を多分に含むことから, LPF (ローパスフィルタ) であらかじめ高域のゲインを削ぐ必要がある.
+このLPFを, 特にPLLにおいてLF (ループフィルタ) とよぶ. 
+今回, LFとしてPID制御系を用いた. 
+$$L(s) = K_p + \frac{K_i}{s} + sK_d$$
+
+\subsection{アラン分散}
+周波数安定度の尺度として, 周波数領域における指標, 時間領域における指標が存在する.
+前者の指標は, 周波数変動をパワースペクトル密度で表示したもので,　短期的な周波数変動の表現に適する.
+対称的に後者の指標は長期的な周波数変動の評価に適する.
+この場合, 周波数の測定個数$N$を十分大きくとり, その平均値の周りの分散を考えるのが基本になるが, 
+フリッカFM雑音やランダムウォーク雑音による周波数変動は$N \rightarrow \infty$で発散してしまう問題がある.
+この影響を排除するために考案された指標として, アラン分散 (Allan variance) $\sigma^2(\tau)$が存在する.
+通常の分散では, 無限時間平均をとると発散してしまうような雑音特性に関しても有限の値で評価することが可能である. 
+\par
+時刻$k$における, 平均化時間$\tau$で平均化した周波数を$f_k$, 計測データの個数を$N$とおくと,
+\begin{eqnarray}
+\sigma^2(\tau) &=& \frac{1}{2} \left< (f_{k+1} - f_k)^2 \right> \nonumber \\
+			&=& \frac{1}{2} \frac{1}{N-1}  \sum_{k=1}^{N-1} (f_{k+1} - f_k) \nonumber
+\end{eqnarray}
+アラン分散$\sigma^2(\tau)$を平均化時間$\tau$に対してプロットすることで, どの程度長期的な変動が含まれるか見積もることができる.
+\par
+典型的なアラン分散のグラフを次に示す.
+
+フリッカFM雑音
+
+ほげほげ雑音
+
+ふがふが雑音
+
+\subsection{FPGA}
+FPGA (Field-Programmable Gate Array)は『現場で書き換え可能なゲートアレイ』であり, 
+その回路構成は一般にHDL (Hardware Description Language) によって任意に書き換え可能である. 
+FPGAには数万規模のゲートや記憶素子が集積されており, その配線や配置を使用者が記述したHDL等を基に推論し, 任意のディジタル回路を実現することができる. 
+\par
+本研究においては, Xilinx社のZynq-7020を搭載した評価ボードの, Eclypse-Z7を用いて制御系の実装を行った.
+同FPGAは, PLと呼ばれるFPGA部に加えて高帯域のバスで相互に結合されたARMプロセッサ (PS)を同一チップ上に集積したもので, 相互の協調動作が可能である.
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/zynq.png}
+ \caption{Zynq-7000シリーズのアーキテクチャ}
+ \label{fig:zynq}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\clearpage
+\section{$f_{rep}$の制御パラメータの定量的調整則}
+\subsection{位相制御系の伝達関数モデリング}
+プラント (制御対象) の伝達関数は, ステージ位置制御系と, 光学系から構成される. 
+これらの伝達関数を適切にモデリングし, 部分的モデルマッチング法を適用することで
+制御パラメータの最適な値を事前に知ることのできる値を用いて定量的に調整することが可能である. 
+
+\subsection{部分的モデルマッチング法}
+部分的モデルマッチング法とは, 制御対象の出力$y(t)$を規範モデルの出力$y_m(t)$と
+近似的に一致させるよう, コントローラのパラメータを調整する設計手法である. 
+3次の規範モデルの伝達関数を示す. 
+\begin{eqnarray}
+	G_{m3}(s) = \frac{\omega_m^3}{s^3 + \alpha_2\omega_ms^2 + \alpha_1\omega_m^2s+\omega_m^3}
+\end{eqnarray}
+規範モデルのパラメータ, $\alpha_n$の設定のとり方として, 次のようなものがよく知られている　(表 \ref{tab:std-param}). 
+これら規範モデルの単位ステップ応答を図\ref{fig:std-model}に示す.
+\begin{table}[hbtp]
+	\centering
+	\caption{各種標準形のパラメータ設定}
+	\label{tab:std-param}
+	\begin{tabular}{|l|c|c|c|}
+		\hline
+		各種標準形      & $\alpha_1$ & $\alpha_2$ & オーバーシュート \\ \hline
+		2項係数標準形   & $3$        & $3$        & なし \\ \hline
+		バターワース標準形 & $2$        & $2$       & 8.2\% \\ \hline
+		ITAE最小標準形\cite{ITAE} & $2.15$     & $1.75$ & 2.0\%     \\ \hline
+	\end{tabular}
+\end{table}
+
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/std-model.png}
+ \caption{3次の各規範モデルのステップ応答 ($\omega_m = 1$)}
+ \label{fig:std-model}
+\end{figure}
+
+2項係数標準系は臨界制動に相当し，オーバーシュートを生じないものの目標値への収束が遅い. 
+バターワース標準形はオーバーシュートをある程度許容し, 応答速度を向上している.
+ITAE (Integral of Time weighted Absolute Error) とは, 時間$t$で偏差量$e(t)$を重みづけした値の絶対値の時間積分である. 
+$$J_{ITAE} = \int_0^\infty t|e(t)|\mathrm{d}t $$
+ITAE標準形ではこの$J_{ITAE}$をほぼ最小とするよう, パラメータを設定する.
+
+\subsection{光路長調整アクチュエータの伝達関数 $M(s)$}
+光路長を制御し, 繰り返し周波数$f_{rep}$を変更するデバイスとして,
+ステッピングモータ, EOM (電気光学変調器), ピエゾ素子が用いられる. 
+今回, ステッピングモータの閉ループ制御系を内蔵した, ステージ位置制御装置を用いて光路長の制御を行うが, 
+このモータ制御系はブラックボックスとして扱われ, 直接の制御パラメータの設定はできない. 
+\par
+そこで, このステッピングモータドライバに対しシステム同定を行い, 
+代表極をもつ低次の伝達関数として近似表現することとする.
+% TODO: 実験結果
+実験結果より, ステッピングモータドライバの設定パラメータである, ステージ位置の最大移動速度量となる. 
+時定数$\tau_m$は, 同定結果より$0.65$程度であった.
+\begin{eqnarray}
+	M(s) = \frac{K_m}{1 + \tau_m s}
+\end{eqnarray}
+
+\subsection{光学系の伝達関数 $O(s)$}
+光学共振器は, 共振器長に依存し繰り返し周波数$f_{rep}$が変化することから純粋積分要素であり, 通常のPLLでいうVCOに相当する.
+ステージ位置を$\pm 1$ステップ移動させた際の周波数シフト量$\Omega_o$は, 次式より算出できる他, 実験結果より推定することができる. 
+\begin{eqnarray}
+	O(s) =  \frac{\Omega_o}{s}
+\end{eqnarray}
+
+\subsection{ループフィルタの伝達関数 $L(s)$}
+ループフィルタとして用いられるPIDコントローラの伝達関数は次式で与えられる.
+\begin{eqnarray}
+	L(s) = K_p + \frac{K_i}{s} + sK_d
+\end{eqnarray}
+
+
+
+\subsection{部分的モデルマッチング法の適用}
+部分的モデルマッチング法を適用するにあたり, 目標値応答, 外乱応答のどちらに注目しパラメータを設定するか選択することができる.  
+光周波数コムの$f_{ceo}, f_{rep}$制御においては目標値一定であることがほとんどであり, 後者の特性が優先されることから,
+今回, 後者に注目したパラメータの調整則を適用する.
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=12cm]
+      {image/block_diagram.png}
+ \caption{制御系のブロック線図, $L(s)$ ループフィルタの伝達関数, $M(s)$ アクチュエータの伝達関数, $O(s)$ 光学系の伝達関数}
+ \label{fig:std-model}
+\end{figure}
+\par
+この制御系において, 外乱として$M(s)$に入力される$d_m(s)$, $O(s)$に入力される$d_o(s)$の2つが考えられる.
+前者の$d_m(s)$は, 例えば$M(s)$がステッピングモータの場合, 脱調などに相当する. 後者の$d_o(s)$の場合, 温度変化, 振動による光路長の変化が考えられる. 
+今回, $d_m(s)$はマイナーループ等で補償されているという前提のもと, $d_o(s)$に注目し部分的モデルマッチング法を適用する.
+
+\par
+ループフィルタ$L(s)$とアクチュエータ$M(s)$の合成伝達関数を$C(s)$とおく.
+\begin{eqnarray}
+	C(s) = L(s)\,M(s) = \frac{K_m\,\left(K_p+K_d\,s+\frac{K_i}{s}\right)}{s\,\tau_m+1}
+\end{eqnarray}
+
+この制御系の, 外乱入力$d_o(s)$に対する閉ループ合成伝達関数$G_{yd_o}(s)$は,
+\begin{eqnarray}
+	G_{yd_o}(s) &=& \frac{O(s)}{1 + C(s)\,O(s)} \\
+					&=& \frac{\Omega_o}{s\,\left(\frac{\Omega_o\,\left(K_p+K_d\,s+\frac{K_i}{s}\right)}{s}+1\right)}
+\end{eqnarray}
+
+%\begin{eqnarray}
+%	\frac{1}{G_{yd_o}(s)} &=& \frac{1 + P(s)\,L(s)}{P(s)} \\
+%	&=& \frac{1}{s} \left(K_i+K_p\,s+s^2\,\left(K_d+\frac{1}{\Omega_{o}\,K_m}\right)+\frac{s^3\,\tau_m}{\Omega_{o}\,K_m} %\right)
+%\end{eqnarray}
+
+$G_{yd_o}(s)$の逆数をべき級数展開し, 
+\begin{eqnarray}
+\frac{1}{G_{yd_o}(s)} &=& \frac{1}{s} \Biggl\{ K_i\,K_m \\
+&+& s\,K_m\,\left(K_p-K_i\,\tau_m\right) \\
+&+& \frac{s^2\,\left(K_m\,\Omega_o\,\left(K_i\,{\tau_m}^2-K_p\,\tau_m+K_d\right)+1\right)}{\Omega_o} \\
+&-& K_m\,s^3\,\left(K_i\,{\tau_m}^3-K_p\,{\tau_m}^2+K_d\,\tau_m\right) \\
+&+& K_m\,s^4\,\left(K_i\,{\tau_m}^4-K_p\,{\tau_m}^3+K_d\,{\tau_m}^2\right) \\
+&-& K_m\,s^5\,\left(K_i\,{\tau_m}^5-K_p\,{\tau_m}^4+K_d\,{\tau_m}^3\right) \Biggr\}
+\end{eqnarray}
+
+ここで$\frac{1}{G_{yd_o}(s)}$に$\frac{s}{K_iK_m}$を乗算し,
+\begin{eqnarray}
+\frac{s}{G_{yd_o}(s)K_iK_m} &=& 1 \\
+&+& s\frac{\left(K_p-K_i\,\tau_m\right)}{K_i} \\
+&+& s^2\frac{\left(K_m\,\Omega_o\,\left(K_i\,{\tau_m}^2-K_p\,\tau_m+K_d\right)+1\right)}{K_iK_m\Omega_o} \\
+&-& s^3\frac{\left(K_i\,{\tau_m}^3-K_p\,{\tau_m}^2+K_d\,\tau_m\right)}{K_i} \\
+&+& s^4\frac{\left(K_i\,{\tau_m}^4-K_p\,{\tau_m}^3+K_d\,{\tau_m}^2\right)}{K_i} \\
+&-& s^5\frac{\left(K_i\,{\tau_m}^5-K_p\,{\tau_m}^4+K_d\,{\tau_m}^3\right)}{K_i}
+\end{eqnarray}
+\par
+一方, 規範モデルの伝達関数の逆数は次のように展開される.
+\begin{eqnarray}
+	\frac{1}{G_{m3}(s)} = 1 + \gamma_{m1}s + \gamma_{m2}s^2 + \gamma_{m3}s^3 \nonumber \\
+	\gamma_{m1} =  \frac{\alpha_1}{\omega_m}, 
+	\gamma_{m2} =  \frac{\alpha_2}{\omega_m^2}, 
+	\gamma_{m3} =  \frac{1}{\omega_m^3} \nonumber
+\end{eqnarray}
+\par
+これを, 先ほどのフィードバック系の伝達関数の逆数$\frac{s}{G_{yd}(s)\,K_i}$と3次までの項において係数比較することにより, 制御パラメータ$K_p, K_i, K_d$の最適な値を与えることができる.
+係数結果の結果より得られる方程式を制御パラメータ$K_p, K_i, K_d$について解き, 次の結果を得る.
+\begin{eqnarray}
+K_{p} &=& \frac{\alpha_{1}}{\omega_{m}} + \tau_{m} \nonumber \\
+K_{i} &=& \frac{\omega_{m}^{3} \tau_{m}}{K_{m} \Omega_{o} \left(\alpha_{2} \omega_{m} \tau_{m} + 1\right)} \nonumber \\
+K_{d} &=& \frac{K_{m} \Omega_{o} \alpha_{1} \alpha_{2} \omega_{m} \tau_{m}^{2} + K_{m} \Omega_{o} \alpha_{1} \tau_{m} + K_{m} \Omega_{o} \alpha_{2} \omega_{m}^{2} \tau_{m}^{3} + K_{m} \Omega_{o} \omega_{m} \tau_{m}^{2} - \omega_{m}^{4} \tau_{m}^{3} - \omega_{m}}{K_{m} \Omega_{o} \omega_{m} \left(\alpha_{2} \omega_{m} \tau_{m} + 1\right)} \nonumber
+\end{eqnarray}
+
+適切に伝達関数をモデリングすることで, 最適な制御パラメータを定量的に調整することが可能であることを示した. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{モードロックファイバレーザーの位相同期制御}
+
+\subsection{提案する制御手法}
+%TODO: どういう利点があるか?
+FC (周波数比較器) とPC (位相比較器) ，2つの比較器を用いたDSP位相同期制御系を提案する (図2)．
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/ctrl-dig.png}
+ \caption{2つの比較器を用いたDSP位相同期制御系 $P(s)$ : 光学系, FC : 周波数比較器, PC : 周波数比較器}
+ \label{fig:ctrl-dig}
+\end{figure}
+\par
+FCは，フィードバックした$f_{rep}$と基準周波数$f_{Ref}$を周波数カウンタにてそれぞれ計数し，周波数差分を出力する．
+
+\par
+PCは，$f_{rep}$と$f_{Ref}$の位相差を出力する．この制御系は，位相の微分が角周波数である事実を用いており，位相に対するPID制御系として動作する．
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/PC_state.png}
+ \caption{PC (位相比較器) の状態遷移図}
+ \label{fig:PC_state}
+\end{figure}
+
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/PC_chart.png}
+ \caption{PCの応答波形}
+ \label{fig:PC_chart}
+\end{figure}
+\par
+2つの比較器を制御系に用いた理由として，応答の高速化が挙げられる．PCは入力矩形波間の位相関係をパルス信号として出力するが，周波数偏差が大きい場合，出力が飽和し，応答速度がこれに制限される．周波数比較器を導入することで，主に制御系起動時の目標値への収束速度や室温変化時の急峻な位相変動に対する特性の向上が期待される．
+\par
+PIDパラメータである$K_p$は，周波数差分の積分に乗算され，$K_d$は周波数差分そのものに作用する．$K_i$は位相差の積分結果に乗算される．これらの結果を加算し，制御入力を決定する．制御入力は光共振器長を変化させる素子へ入力され，$f_{rep}$が制御される．この入力はステッピングモータードライバへ送信され，光共振器長を変化させる．
+
+\subsection{$f_{rep}$位相同期制御系の実装}
+%TODO : 実験装置等の説明
+実装したDSP位相同期制御系を図 \ref{fig:exp-dig}に示す. 
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, scale=0.25]
+      {image/exp-dig.png}
+ \caption{2つの比較器を用いたDSP位相同期制御系 $P(s)$ : 光学系, FC : 周波数比較器, PC : 周波数比較器}
+ \label{fig:exp-dig}
+\end{figure}
+
+半導体可飽和吸収体を用いた, 超短パルスモードロックEr添加ファイバレーザーの繰り返し周波数に対してDSP位相同期制御系を適用する．
+リング型のファイバ共振器において，一部を空間光に変換した．その光路長をステッピングモータにて可変させて，$f_{rep}$の制御を実現する．
+$f_{rep}$ をFPGAに入力するにあたり，PD (フォトディテクタ) にて電気信号に変換されたパルス (図 1 (b)) をBPF (バンドパスフィルタ) にてろ過し，周波数 $f_{rep}$を持つ正弦波に変換する．
+この正弦波は電流帰還オペアンプを用いた高速アンプにて交流増幅され，コンパレータへ入力される．以上の工程により周波数 $f_{rep}$を持つ矩形波が生成され，FPGAへ入力される．
+DSP位相同期制御系の実装には, Xilinx社のZynq-7020を搭載したDigilent社のEclypse Z7 FPGA評価ボードを使用した．
+Zynq-7020はPS (プロセッサ) とPL (FPGA) を同一チップ上に備えたSoC (System-on-a-Chip) であり，それぞれが協調した動作が可能である．
+PSではLinuxが動作し，計数した各周波数や，PID制御系の各項の状態をリアルタイムにモニタ可能である．
+評価ボードに入力された矩形波信号は, PL内のDSP位相同期制御回路に分配され高速に処理される.
+各PIDパラメータは単精度浮動小数点にて柔軟に指定することが可能である．
+計算された制御入力はPSへと引き渡され，RS-232C通信でステッピングモータドライバへと入力される．
+なお，今回$f_{Ref}$には評価ボードの搭載する33.3MHz水晶発振器からのクロックを基にPLが搭載するPLL (Phase Locked Loop) ユニットによって生成した17.61477MHzのクロック信号を用いている．
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/exp-setup.jpg}
+  \caption{DSP位相同期制御系の実験装置, 上段　BPF(バンドパスフィルタ), 中段 高速アンプ, 下段右 矩形波生成回路, 下段左 FPGA評価ボード EclypseZ7 }
+ \label{fig:exp-setup}
+\end{figure}
+
+\subsection{実験結果}
+時間経過に対する, 周波数偏差 (目標周波数と実際の$f_{rep}$の差) のグラフを図 \ref{fig:freq-graph}に示す. 
+無制御時には$f_{rep}$は変動を繰り返しながら180分経過時点において250Hz程度の周波数偏差が生じているが, 制御系の導入により周波数差分を0Hz付近に保つ動作が確認された.
+
+\begin{figure}[hbtp]
+ \centering
+ \includegraphics[keepaspectratio, width=10cm]
+      {image/freq-graph.png}
+ \caption{経過時間に対する周波数偏差のグラフ}
+ \label{fig:freq-graph}
+\end{figure}
+
+\par
+この計測データを基に計算した平均化時間$\tau$に対するアラン分散の平方根$\sigma(\tau)$を次に示す.
+\begin{figure}[hbtp]
+  \centering
+  \includegraphics[keepaspectratio,width=10cm]
+  		{image/allan_variance.png}
+  \caption{平均化時間$\tau$に対するアラン分散$\sigma(\tau)$}
+  \label{fig:allan-variance}
+\end{figure}
+\par
+すべての平均化時間$\tau$において, 制御時のアラン分散$\sigma^2(\tau)$がフリーラン時のそれに対し減少している. 
+特に,平均化時間$\tau$を大きくとった場合においてアラン分散が大きく減少していることから, 
+制御系が温度変化等を要因とする長期的変動に対し効果的に補償するよう動作することが確認できる.
+平均化時間$\tau=10^4$付近において, アラン分散が上昇した原因は前述したようにフリッカFM雑音であると考えられる.
+この雑音は, 電子装置や環境による要因により引き起こされるノイズである.
+
+$\tau=10^1$において, アラン分散の抑圧が弱い理由として, 位相同期の基準周波数そのものが光コムの発振器に対して不安定であった可能性, 
+もしくは, RF増幅時に生じるノイズの影響が支配的であると考えられる.
+
+トランスインピーダンスアンプ内蔵タイプのPDの使用 
+RFアンプを省くことが出来れば,　雑音特性向上
+
+位相同期基準周波数を, Rbスタンダード等に同期した周波数で行うこと
+
+制御帯域の拡張 PZT使用
+
+励起光強度の安定化.
+ACC (Auto Current Control), APC (Auto Power Control)　行うことで, より
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\clearpage
+\section{結論}
+\subsection{本研究のまとめ}
+\subsection{今後の展望と課題}
+位相同期性能の更なる向上を図るには, 基準となる周波数をより安定性の高いもの\cite{allan_var}
+
+\bibliography{refer}
+\bibliographystyle{junsrt}
+
+\clearpage
+\section{付録}
+\subsection{実験装置の製作}
+本研究では, PD (フォトディテクタ) から得られる微小パルス信号を, FPGAに入力できるよう処理する必要があることから, この機能を担う電子回路を設計, 製作した. 
+微小かつ高速な信号を扱うことから, インピーダンス整合や挿入損失に細心の注意を払い, 回路, PCBの設計, 部品の選定を行わなければならない. 
+特性インピーダンスを50\si{\ohm}に整合する必要がある他, 寄生インダクタンスや容量による周波数特性の変化を避ける必要から, 
+独自のPCBを設計し, 表面実装のコンデンサ, インダクタを回路素子として用いた. 
+
+\subsubsection{BPF}
+BPFフィルタの設計には, オープンソースプロジェクトで開発が進められている無償の高周波回路シミュレータ, Qucs Studioを用いた. 
+このQucs Studioで設計する際に設定したパラメータ, 得られた回路図, 周波数特性, スミスチャートを次に示す. 
+\par
+製作したBPFにおいて, 実測した透過帯域における挿入損失は3\si{\decibel}程度であり, 良好な特性を示した. 
+% PCB画像
+\begin{figure}[hbtp]
+  \centering
+  \includegraphics[keepaspectratio,width=10cm]
+  		{image/BPF_pcb.jpg}
+  \caption{製作したBPF}
+  \label{fig:BPF_pcb}
+\end{figure}
+% 回路図
+\includepdf[angle=90]{append/BPF.pdf}
+% 周波数特性
+% 実測値
+\subsubsection{RFアンプ}
+前段のBPFで正弦波として取得した$f_{rep}$は極めて微小な信号(300\si{\micro\volt}程度)　であることから, 直接信号処理することは出来ず, 前もって増幅する必要がある.
+今回, 電流帰還オペアンプを2つ用いた, 高速に動作する+40\si{\decibel}の利得をもつ50\si{\ohm}系のRFアンプを設計, 製作した. このRFアンプの諸元を表\ref{tab:RF-spec}に示す.
+使用する際は, GNDを安定した電位をもつ金属シャーシ等に接地することを要する. 保安用グラウンドに接地すると他機器によるノイズの影響を多分に
+受けることに留意されたい.
+% PCB画像
+\begin{figure}[hbtp]
+  \centering
+  \includegraphics[keepaspectratio,width=10cm]
+  		{image/RF_pcb.jpg}
+  \caption{製作したRFアンプ}
+  \label{fig:RF_pcb}
+\end{figure}
+% 回路図
+\includepdf[angle=90]{append/RF_sche.pdf}
+
+\subsubsection{矩形波変換回路}
+FPGAに信号を入力するに際して, 正弦波信号をTTL (Transistor-transistor-logic)やCMOSレベルの振幅をもつ, 同周期をもつ矩形波信号に変換する必要がある. 今回, 高速ヒステリシスコンパレータを用いて正弦波からLVTTL (Low Voltage TTL)レベルの矩形波に変換する回路を設計, 製作した.
+使用する際は, GNDを安定した電位をもつ金属シャーシ等に接地することを要する.
+% PCB画像
+\begin{figure}[hbtp]
+  \centering
+  \includegraphics[keepaspectratio,width=10cm]
+  		{image/COMP_pcb.jpg}
+  \caption{製作した矩形波変換回路}
+  \label{fig:COMP_pcb}
+\end{figure}
+% 回路図
+\includepdf[angle=90]{append/SS_sche.pdf}
+
+\subsection{FPGAの回路構成}
+ほげ
+\includepdf[]{append/top_bd.pdf}
+
+\subsection{制御プログラムの構成}
+以下に, 制御プログラムのソースコードを格納するディレクトリの構成を示す. 
+\begin{lstlisting}[caption=制御プログラムを格納するディレクトリの構成, label=tree]
+.
+|-- Makefile
+|-- clock.cc
+|-- clock.h
+|-- curs_dialog.cc
+|-- curs_dialog.h
+|-- curs_yesno.cc
+|-- gpio.cc
+|-- gpio.h
+|-- main.cc
+|-- mem.cc
+|-- mem.h
+|-- motor.cc
+|-- motor.h
+|-- reset.cc
+|-- reset.h
+|-- str_util.cc
+|-- str_util.h
+|-- sum_product_bp
+|-- tty.cc
+|-- tty.h
+\end{lstlisting}
+上記のうち, 重要な役割をもつソースコードとその内容について簡単に説明する.
+\subsubsection{main.cc}
+
+\subsubsection{mem.h mem.cc}
+
+\subsubsection{tui.h tui.cc}
+
+\subsubsection{servo.h servo.cc}
+
+\subsubsection{gpio.h gpio.cc}
+
+\subsubsection{motor.h motor.cc}
+
+\subsubsection{tty.h tty.cc}
+
+%
+%
+\end{document}
+
